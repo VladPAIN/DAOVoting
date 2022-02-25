@@ -247,18 +247,4 @@ describe('Contract: DAO', () => {
 
     });
 
-
-
-    // it.only('should close proposal with Yes', async () => {
-    //     await dao.deposit(amountVoter1, { from: voter1 });
-    //     await dao.deposit(amountVoter2, { from: voter2 });
-    //     await dao.deposit(amountVoter3, { from: voter3 });
-    //     await dao.createProposal(proposalID, { from: voter1 });
-    //     await dao.vote(proposalID, SIDE.Yes, { from: voter1 });
-    //     await dao.vote(proposalID, SIDE.Yes, { from: voter2 });
-    //     const proposal = await dao.proposals.call(proposalID);
-
-    //     assert(proposal.status.toNumber() === STATUS.Approved);
-    // });
-
 });
