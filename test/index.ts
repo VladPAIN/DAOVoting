@@ -41,30 +41,36 @@ describe('Contract: DAO', () => {
 
     	it('Should deposit governance tokens', async function () {
 
-			await token.approve(dao.address, 100);
-        	await dao.deposit(100);
+			await token.approve(dao.address, ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
+        	await dao.deposit(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 			
-			expect(await dao.getShares()).to.equal("100");
+			expect(await dao.getShares()).to.equal(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 
     	});
 
 		it('Should not withdraw governance tokens - not enough shares', async () => {
 			
-			await token.approve(dao.address, 100);
-			await dao.deposit(100);
+			await token.approve(dao.address, ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
+			await dao.deposit(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 
-			await expect(dao.withdraw(200)).to.be.revertedWith('Not enough shares');
+			await expect(dao.withdraw(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS), proposalID)).to.be.revertedWith('Not enough shares');
 
 		});
 
 		it('Should withdraw tokens', async () => {
 
-			await token.approve(dao.address, 100);
+			await token.approve(dao.address, ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 
-			await dao.deposit(100);
-			expect(await dao.getShares()).to.equal("100");
+			await dao.deposit(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
+			expect(await dao.getShares()).to.equal(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 
-			await dao.withdraw(100);
+            await dao.createProposal(proposalID);
+            await dao.vote(proposalID, SIDE.Yes);
+            await expect(dao.withdraw(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS), proposalID)).to.be.revertedWith('Voting period is not over');
+
+            await time.increase(260000);
+
+			await dao.withdraw(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS), proposalID);
 
 			expect(await dao.getShares()).to.equal("0");
 
@@ -107,18 +113,18 @@ describe('Contract: DAO', () => {
 
         it('Should voting', async () => {
 
-            await token.approve(addr1.address, 200);
-            await token.approve(addr2.address, 300);
-            await token.connect(addr1).transferFrom(owner.address, addr1.address, 200);
-            await token.connect(addr2).transferFrom(owner.address, addr2.address, 300);
+            await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.approve(addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+            await token.connect(addr1).transferFrom(owner.address, addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr2).transferFrom(owner.address, addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-            await token.connect(addr1).approve(dao.address, 200);
-            await token.connect(addr2).approve(dao.address, 300);
-        	await dao.connect(addr1).deposit(200);
-            await dao.connect(addr2).deposit(300);
+            await token.connect(addr1).approve(dao.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr2).approve(dao.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+        	await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await dao.connect(addr2).deposit(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-            expect(await dao.connect(addr1).getShares()).to.equal("200");
-            expect(await dao.connect(addr2).getShares()).to.equal("300");
+            expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await dao.connect(addr2).getShares()).to.equal(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
             await dao.createProposal(proposalID);
 
@@ -127,20 +133,20 @@ describe('Contract: DAO', () => {
 
 			const proposal = await dao.proposals(proposalID);
 
-			expect(await proposal.votesYes).to.equal("200");
-            expect(await proposal.votesNo).to.equal("300");
+			expect(await proposal.votesYes).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await proposal.votesNo).to.equal(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
             expect(await proposal.status).to.equal(STATUS.Undecided);
 
 		});
 
         it('Should not vote twice', async () => {
 
-            await token.approve(addr1.address, 200);
-            await token.connect(addr1).transferFrom(owner.address, addr1.address, 200);
+            await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr1).transferFrom(owner.address, addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
-            await token.connect(addr1).approve(dao.address, 200);
-            await dao.connect(addr1).deposit(200);
-            expect(await dao.connect(addr1).getShares()).to.equal("200");
+            await token.connect(addr1).approve(dao.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
             await dao.createProposal(proposalID)
 
@@ -152,12 +158,12 @@ describe('Contract: DAO', () => {
 
         it('Should proposal does not exist', async () => {
 
-            await token.approve(addr1.address, 200);
-            await token.connect(addr1).transferFrom(owner.address, addr1.address, 200);
+            await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr1).transferFrom(owner.address, addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
-            await token.connect(addr1).approve(dao.address, 200);
-            await dao.connect(addr1).deposit(200);
-            expect(await dao.connect(addr1).getShares()).to.equal("200");
+            await token.connect(addr1).approve(dao.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
             await expect(dao.connect(addr1).vote(proposalID, SIDE.Yes)).to.be.revertedWith('Proposal does not exist');
 
@@ -169,55 +175,61 @@ describe('Contract: DAO', () => {
 
         it('Should finish when period is not over', async () => {
 
-            await token.approve(addr1.address, 200);
-            await token.connect(addr1).transferFrom(owner.address, addr1.address, 200);
+            await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr1).transferFrom(owner.address, addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
-            await token.connect(addr1).approve(dao.address, 200);
-            await dao.connect(addr1).deposit(200);
-            expect(await dao.connect(addr1).getShares()).to.equal("200");
+            await token.connect(addr1).approve(dao.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
             await dao.createProposal(proposalID)
 
             await dao.connect(addr1).vote(proposalID, SIDE.Yes);
 
-            await expect(dao.connect(addr1).finish(proposalID)).to.be.revertedWith('Voting period is not over');
+            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
+
+            await expect(dao.connect(addr1).finish(proposalID, token.address, data)).to.be.revertedWith('Voting period is not over');
 
         });
 
-        // it('Should finish', async () => {
+        it('Should finish', async () => {
 
-        //     await token.approve(addr1.address, 200);
-        //     await token.approve(addr2.address, 300);
-        //     await token.connect(addr1).transferFrom(owner.address, addr1.address, 200);
-        //     await token.connect(addr2).transferFrom(owner.address, addr2.address, 300);
+            await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.approve(addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+            await token.connect(addr1).transferFrom(owner.address, addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr2).transferFrom(owner.address, addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-        //     await token.connect(addr1).approve(dao.address, 200);
-        //     await token.connect(addr2).approve(dao.address, 300);
-        // 	await dao.connect(addr1).deposit(200);
-        //     await dao.connect(addr2).deposit(300);
+            await token.connect(addr1).approve(dao.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr2).approve(dao.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+        	await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await dao.connect(addr2).deposit(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-        //     expect(await dao.connect(addr1).getShares()).to.equal("200");
-        //     expect(await dao.connect(addr2).getShares()).to.equal("300");
+            expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await dao.connect(addr2).getShares()).to.equal(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-        //     await dao.createProposal(proposalID);
+            await dao.createProposal(proposalID);
 
-        //     await dao.connect(addr1).vote(proposalID, SIDE.Yes);
-        //     await dao.connect(addr2).vote(proposalID, SIDE.No);
+            await dao.connect(addr1).vote(proposalID, SIDE.No);
+            await dao.connect(addr2).vote(proposalID, SIDE.Yes);
 
-		// 	const proposal = await dao.proposals(proposalID);
+			const proposal = await dao.proposals(proposalID);
 
-        //     console.log(proposal.votesYes);
-        //     console.log(proposal.votesNo);
-        //     console.log(await dao.getTotalShares(proposalID));
+            console.log(proposal.votesYes);
+            console.log(proposal.votesNo);
+            console.log(await dao.getTotalShares(proposalID));
             
 
-        //     await time.increase(260000);
+            await time.increase(260000);
 
-        //     await dao.connect(addr1).finish(proposalID);
+            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
+            console.log(data);
 
-        //     expect(await proposal.status).to.equal(STATUS.Rejected);
+            await dao.connect(addr1).finish(proposalID, token.address, data);
+            console.log(await token.balanceOf(owner.address));
 
-        // });
+            expect(await proposal.status).to.equal(STATUS.Rejected);
+
+        });
     
     });
 

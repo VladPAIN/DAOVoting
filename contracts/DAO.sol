@@ -61,9 +61,10 @@ contract DAO is AccessControl {
     }
 
 
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount, bytes32 proposalHash) external {
 
         require(shares[msg.sender] >= amount, "Not enough shares");
+        require(block.timestamp >= proposals[proposalHash].createdAt + periodDuration, "Voting period is not over");
 
         shares[msg.sender] -= amount;
         token.transfer(msg.sender, amount);
@@ -110,12 +111,13 @@ contract DAO is AccessControl {
         }
     }
 
-    function finish(bytes32 proposalHash) external {
+    function finish(bytes32 proposalHash, address proposalCall, bytes memory data) external {
 
         require(block.timestamp >= proposals[proposalHash].createdAt + periodDuration, "Voting period is not over");
 
         if ((proposals[proposalHash].votesYes * 100) / proposals[proposalHash].totalShares > approvedPercent) {
             proposals[proposalHash].status = Status.Approved;
+            proposalCall.call(data);
             emit FinishProposal(proposalHash, block.timestamp, Status.Approved);
         }
     
@@ -123,6 +125,14 @@ contract DAO is AccessControl {
             proposals[proposalHash].status = Status.Rejected;
             emit FinishProposal(proposalHash, block.timestamp, Status.Rejected);
         }
+
+        // bytes memory data = "40c10f19000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000056BC75E2D63100000";
+
+        
+        // 40c10f19
+        // 000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266
+        // 0000000000000000000000000000000000000000000000056BC75E2D63100000
+        
 
     }
 
