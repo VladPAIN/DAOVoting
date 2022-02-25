@@ -1,6 +1,7 @@
 pragma solidity ^0.8.10;
 
 import "./ERC20.sol";
+//import "hardhat/console.sol";
 
 contract DAO is AccessControl {
 
@@ -11,6 +12,8 @@ contract DAO is AccessControl {
 
     struct Proposal {
         address author;
+        address proposalCall;
+        bytes data;
         bytes32 hash;
         uint256 createdAt;
         uint256 votesYes;
@@ -19,7 +22,7 @@ contract DAO is AccessControl {
         Status status;
     }
 
-    event AddProposal(address author, bytes32 hash, uint256 createdAt, Status status);
+    event AddProposal(address author, address proposalCall, bytes data, bytes32 hash, uint256 createdAt, Status status);
     event Deposit(address owner, uint256 amount);
     event FinishProposal(bytes32 hash, uint256 finishAt, Status status);
 
@@ -56,11 +59,6 @@ contract DAO is AccessControl {
         return shares[msg.sender];
     }
 
-    function getTotalShares(bytes32 proposalHash) external view returns(uint256) {
-        return proposals[proposalHash].totalShares;
-    }
-
-
     function withdraw(uint256 amount, bytes32 proposalHash) external {
 
         require(shares[msg.sender] >= amount, "Not enough shares");
@@ -72,13 +70,13 @@ contract DAO is AccessControl {
     }
 
 
-    function createProposal(bytes32 proposalHash) external {
+    function createProposal(bytes32 proposalHash, address _proposalCall, bytes calldata _data) external {
 
         require(hasRole(ADMIN_ROLE, msg.sender), "Caller is not a admin");
         require(proposals[proposalHash].hash == bytes32(0), "Proposal already exists");
 
-        proposals[proposalHash] = Proposal(msg.sender, proposalHash, block.timestamp, 0, 0, 0, Status.Undecided);
-        emit AddProposal(msg.sender, proposalHash, block.timestamp, Status.Undecided);
+        proposals[proposalHash] = Proposal(msg.sender, _proposalCall, _data, proposalHash, block.timestamp, 0, 0, 0, Status.Undecided);
+        emit AddProposal(msg.sender, _proposalCall, _data, proposalHash, block.timestamp, Status.Undecided);
 
     }
 
@@ -111,13 +109,14 @@ contract DAO is AccessControl {
         }
     }
 
-    function finish(bytes32 proposalHash, address proposalCall, bytes memory data) external {
+    function finish(bytes32 proposalHash) external {
 
         require(block.timestamp >= proposals[proposalHash].createdAt + periodDuration, "Voting period is not over");
-
+    
         if ((proposals[proposalHash].votesYes * 100) / proposals[proposalHash].totalShares > approvedPercent) {
             proposals[proposalHash].status = Status.Approved;
-            proposalCall.call(data);
+            proposals[proposalHash].proposalCall.call(proposals[proposalHash].data);
+
             emit FinishProposal(proposalHash, block.timestamp, Status.Approved);
         }
     
@@ -126,13 +125,7 @@ contract DAO is AccessControl {
             emit FinishProposal(proposalHash, block.timestamp, Status.Rejected);
         }
 
-        // bytes memory data = "40c10f19000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000056BC75E2D63100000";
-
-        
-        // 40c10f19
-        // 000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266
-        // 0000000000000000000000000000000000000000000000056BC75E2D63100000
-        
+        // bytes memory data = "40c10f19000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000056BC75E2D63100000"        
 
     }
 

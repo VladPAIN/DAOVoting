@@ -22,7 +22,8 @@ describe('Contract: DAO', () => {
 
 	const TOTAL_SUPPLY = ethers.utils.parseUnits("10000", process.env.TOKEN_DECIMALS);
 
-	const proposalID = keccak256(toUtf8Bytes("Test Proposal"));
+	const proposalID = keccak256(toUtf8Bytes("Mint 100 tokens"));
+    const proposalData = "0x40c10f19000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000056BC75E2D63100000";
 
 
     beforeEach(async () => {
@@ -64,7 +65,7 @@ describe('Contract: DAO', () => {
 			await dao.deposit(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 			expect(await dao.getShares()).to.equal(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS));
 
-            await dao.createProposal(proposalID);
+            await dao.createProposal(proposalID, token.address, proposalData);
             await dao.vote(proposalID, SIDE.Yes);
             await expect(dao.withdraw(ethers.utils.parseUnits("100", process.env.TOKEN_DECIMALS), proposalID)).to.be.revertedWith('Voting period is not over');
 
@@ -84,21 +85,21 @@ describe('Contract: DAO', () => {
 
     	it(`Shouldn't create a proposal - already exists`, async () => {
 
-			await dao.createProposal(proposalID);
+			await dao.createProposal(proposalID, token.address, proposalData);
 
-			await expect(dao.createProposal(proposalID)).to.be.revertedWith('Proposal already exists');
+			await expect(dao.createProposal(proposalID, token.address, proposalData)).to.be.revertedWith('Proposal already exists');
 
 		});
 
 		it(`Should create a proposal without admin role`, async () => {
 
-			await expect(dao.connect(addr1).createProposal(proposalID)).to.be.revertedWith('Caller is not a admin');
+			await expect(dao.connect(addr1).createProposal(proposalID, token.address, proposalData)).to.be.revertedWith('Caller is not a admin');
 
 		});
 
 		it('Should create a proposal', async () => {
 
-			await dao.createProposal(proposalID);
+			await dao.createProposal(proposalID, token.address, proposalData);
 			const proposal = await dao.proposals(proposalID);
 
 			expect(await proposal.votesYes).to.equal("0");
@@ -126,7 +127,7 @@ describe('Contract: DAO', () => {
             expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
             expect(await dao.connect(addr2).getShares()).to.equal(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-            await dao.createProposal(proposalID);
+            await dao.createProposal(proposalID, token.address, proposalData);
 
             await dao.connect(addr1).vote(proposalID, SIDE.Yes);
             await dao.connect(addr2).vote(proposalID, SIDE.No);
@@ -148,7 +149,7 @@ describe('Contract: DAO', () => {
             await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
             expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
-            await dao.createProposal(proposalID)
+            await dao.createProposal(proposalID, token.address, proposalData)
 
             await dao.connect(addr1).vote(proposalID, SIDE.Yes);
 
@@ -182,17 +183,16 @@ describe('Contract: DAO', () => {
             await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
             expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
 
-            await dao.createProposal(proposalID)
+            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
+            await dao.createProposal(proposalID, token.address, data)
 
             await dao.connect(addr1).vote(proposalID, SIDE.Yes);
 
-            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
-
-            await expect(dao.connect(addr1).finish(proposalID, token.address, data)).to.be.revertedWith('Voting period is not over');
+            await expect(dao.connect(addr1).finish(proposalID)).to.be.revertedWith('Voting period is not over');
 
         });
 
-        it('Should finish', async () => {
+        it('Should finish with true vote', async () => {
 
             await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
             await token.approve(addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
@@ -207,27 +207,54 @@ describe('Contract: DAO', () => {
             expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
             expect(await dao.connect(addr2).getShares()).to.equal(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
 
-            await dao.createProposal(proposalID);
+            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
+            await dao.createProposal(proposalID, token.address, data);
 
             await dao.connect(addr1).vote(proposalID, SIDE.No);
-            await dao.connect(addr2).vote(proposalID, SIDE.Yes);
-
-			const proposal = await dao.proposals(proposalID);
-
-            console.log(proposal.votesYes);
-            console.log(proposal.votesNo);
-            console.log(await dao.getTotalShares(proposalID));
-            
+            await dao.connect(addr2).vote(proposalID, SIDE.Yes);            
 
             await time.increase(260000);
 
-            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
-            console.log(data);
+            await dao.connect(addr1).finish(proposalID);
+            const proposal = await dao.proposals(proposalID);
 
-            await dao.connect(addr1).finish(proposalID, token.address, data);
-            console.log(await token.balanceOf(owner.address));
+            expect(await proposal.status).to.equal(STATUS.Approved);
+
+            await dao.connect(addr1).withdraw(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS), proposalID);
+            await dao.connect(addr2).withdraw(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS), proposalID);
+
+        });
+
+        it('Should finish with false vote', async () => {
+
+            await token.approve(addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.approve(addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+            await token.connect(addr1).transferFrom(owner.address, addr1.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr2).transferFrom(owner.address, addr2.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+
+            await token.connect(addr1).approve(dao.address, ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await token.connect(addr2).approve(dao.address, ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+        	await dao.connect(addr1).deposit(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            await dao.connect(addr2).deposit(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+
+            expect(await dao.connect(addr1).getShares()).to.equal(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS));
+            expect(await dao.connect(addr2).getShares()).to.equal(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS));
+
+            const data = token.interface.encodeFunctionData("mint", ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","100000000000000000000"]);
+            await dao.createProposal(proposalID, token.address, data);
+
+            await dao.connect(addr1).vote(proposalID, SIDE.Yes);
+            await dao.connect(addr2).vote(proposalID, SIDE.No);            
+
+            await time.increase(260000);
+
+            await dao.connect(addr1).finish(proposalID);
+            const proposal = await dao.proposals(proposalID);
 
             expect(await proposal.status).to.equal(STATUS.Rejected);
+
+            await dao.connect(addr1).withdraw(ethers.utils.parseUnits("200", process.env.TOKEN_DECIMALS), proposalID);
+            await dao.connect(addr2).withdraw(ethers.utils.parseUnits("300", process.env.TOKEN_DECIMALS), proposalID);
 
         });
     
@@ -258,19 +285,5 @@ describe('Contract: DAO', () => {
         });
 
     });
-
-
-
-    // it.only('should close proposal with Yes', async () => {
-    //     await dao.deposit(amountVoter1, { from: voter1 });
-    //     await dao.deposit(amountVoter2, { from: voter2 });
-    //     await dao.deposit(amountVoter3, { from: voter3 });
-    //     await dao.createProposal(proposalID, { from: voter1 });
-    //     await dao.vote(proposalID, SIDE.Yes, { from: voter1 });
-    //     await dao.vote(proposalID, SIDE.Yes, { from: voter2 });
-    //     const proposal = await dao.proposals.call(proposalID);
-
-    //     assert(proposal.status.toNumber() === STATUS.Approved);
-    // });
 
 });
