@@ -27,7 +27,7 @@ describe('Contract: DAO', () => {
 
     beforeEach(async () => {
 
-		[owner, addr1, addr2] = await hre.ethers.getSigners();
+	owner, addr1, addr2] = await hre.ethers.getSigners();
 
         Token = await hre.ethers.getContractFactory("Token");
         DAO = await hre.ethers.getContractFactory("DAO");
@@ -37,44 +37,44 @@ describe('Contract: DAO', () => {
 
     });
 
-	describe("Deposit and withdraw func", function () {
+describe("Deposit and withdraw func", function () {
 
     	it('Should deposit governance tokens', async function () {
 
-			await token.approve(dao.address, 100);
+		await token.approve(dao.address, 100);
         	await dao.deposit(100);
 			
-			expect(await dao.getShares()).to.equal("100");
+		expect(await dao.getShares()).to.equal("100");
 
     	});
 
-		it('Should not withdraw governance tokens - not enough shares', async () => {
+	it('Should not withdraw governance tokens - not enough shares', async () => {
 			
-			await token.approve(dao.address, 100);
-			await dao.deposit(100);
+		await token.approve(dao.address, 100);
+		await dao.deposit(100);
 
-			await expect(dao.withdraw(200)).to.be.revertedWith('Not enough shares');
-
-		});
-
-		it('Should withdraw tokens', async () => {
-
-			await token.approve(dao.address, 100);
-
-			await dao.deposit(100);
-			expect(await dao.getShares()).to.equal("100");
-
-			await dao.withdraw(100);
-
-			expect(await dao.getShares()).to.equal("0");
-
-			expect(await token.balanceOf(owner.address)).to.equal(TOTAL_SUPPLY);
-			
-		});
+		await expect(dao.withdraw(200)).to.be.revertedWith('Not enough shares');
 
 	});
 
-	describe("Proposal", function () {
+	it('Should withdraw tokens', async () => {
+
+		await token.approve(dao.address, 100);
+
+		await dao.deposit(100);
+		expect(await dao.getShares()).to.equal("100");
+
+		await dao.withdraw(100);
+
+		expect(await dao.getShares()).to.equal("0");
+
+		expect(await token.balanceOf(owner.address)).to.equal(TOTAL_SUPPLY);
+			
+	});
+
+});
+
+describe("Proposal", function () {
 
     	it(`Shouldn't create a proposal - already exists`, async () => {
 
@@ -125,9 +125,9 @@ describe('Contract: DAO', () => {
             await dao.connect(addr1).vote(proposalID, SIDE.Yes);
             await dao.connect(addr2).vote(proposalID, SIDE.No);
 
-			const proposal = await dao.proposals(proposalID);
+	const proposal = await dao.proposals(proposalID);
 
-			expect(await proposal.votesYes).to.equal("200");
+	expect(await proposal.votesYes).to.equal("200");
             expect(await proposal.votesNo).to.equal("300");
             expect(await proposal.status).to.equal(STATUS.Undecided);
 
